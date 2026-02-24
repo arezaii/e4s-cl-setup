@@ -2,14 +2,11 @@
 
 ## Quick Setup
 
-Run these commands once:
+Run this command once:
 
 ```bash
-cd e4s-setup
-./setup/01_create_venv.sh
-./setup/02_install_e4s.sh
-./setup/03_create_profile.sh
-./setup/04_setup_libraries.sh
+cd e4s-cl-setup
+./setup_all.sh
 ```
 
 Update container image path:
@@ -37,19 +34,19 @@ source bin/setup_env.sh
 ./bin/launch_arkouda.sh --nodes 2 --account myproject
 ```
 
-## Options
+## Options for server startup
 
 | Option | Short | Description |
 |--------|-------|-------------|
-| `--nodes N` | `-N` | Number of nodes |
+| `--nodes N` | `-N` | Number of nodes (default: 1) |
 | `--cpus-per-task N` | `-c` | CPUs per task (default: 256) |
 | `--account NAME` | `-A` | SLURM account |
 | `--partition NAME` | `-p` | SLURM partition |
 | `--qos NAME` | `-q` | SLURM quality of service |
 | `--time TIME` | `-t` | Job time limit (default: 2:00:00) |
-| `--job-name NAME` | `-J` | SLURM job name |
+| `--job-name NAME` | `-J` | SLURM job name (default: arkouda-server) |
 | `--output FILE` | `-o` | Output file for logs |
 | `--heap-size SIZE` | | Chapel heap size (default: 64g) |
-| `--log-level LEVEL` | | Arkouda log level |
-| `--trace BOOL` | | Enable tracing |
+| `--log-level LEVEL` | | Arkouda log level (default: LogLevel.ERROR) |
+| `--trace BOOL` | | Enable tracing (default: false) |
 | `--interactive` | | Run in foreground |
