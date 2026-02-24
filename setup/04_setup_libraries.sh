@@ -30,36 +30,47 @@ fi
 
 echo "Setting up libraries for profile: $CURRENT_PROFILE"
 
-# Function to add library if it exists
-add_library() {
-    local lib_path="$1"
+# Common function to add libraries or directories with critical/optional behavior
+add_component() {
+    local path="$1"
     local description="$2"
+    local type="$3"         # "libraries" or "files"
+    local is_critical="$4"  # "true" or "false"
 
-    if [[ -e "$lib_path" ]]; then
-        if e4s-cl profile edit --add-libraries "$lib_path" &>/dev/null; then
+    if [[ -e "$path" ]]; then
+        if e4s-cl profile edit --add-${type} "$path" &>/dev/null; then
             echo "  + $description"
         else
             echo "  ! Failed: $description"
+            if [[ "$is_critical" == "true" ]]; then
+                return 1
+            fi
+        fi
+        return 0
+    else
+        if [[ "$is_critical" == "true" ]]; then
+            echo "  ! Missing critical ${type%s}: $description"
+            return 1
         fi
         return 0
     fi
-    return 1
 }
 
-# Function to add directory if it exists
-add_directory() {
-    local dir_path="$1"
-    local description="$2"
-    
-    if [[ -e "$dir_path" ]]; then
-        if e4s-cl profile edit --add-files "$dir_path" &>/dev/null; then
-            echo "  + $description"
-        else
-            echo "  ! Failed: $description"
-        fi
-        return 0
-    fi
-    return 1
+# Convenience functions for backward compatibility
+add_critical_library() {
+    add_component "$1" "$2" "libraries" "true"
+}
+
+add_optional_library() {
+    add_component "$1" "$2" "libraries" "false"
+}
+
+add_critical_directory() {
+    add_component "$1" "$2" "files" "true"
+}
+
+add_optional_directory() {
+    add_component "$1" "$2" "files" "false"
 }
 
 echo "Detecting and adding system libraries..."
@@ -70,10 +81,10 @@ if ls /opt/cray/libfabric/*/lib*/libfabric.so.1 2>/dev/null 1>&2; then
     LIBFABRIC_PATH=$(ls /opt/cray/libfabric/*/lib*/libfabric.so.1 2>/dev/null | sort -V | tail -1)
 fi
 if [[ -n "$LIBFABRIC_PATH" ]]; then
-    add_library "$LIBFABRIC_PATH" "Cray libfabric for OFI networking"
+    add_critical_library "$LIBFABRIC_PATH" "Cray libfabric for OFI networking"
     # Also add the lib directory
     LIBFABRIC_DIR=$(dirname "$LIBFABRIC_PATH")
-    add_directory "$LIBFABRIC_DIR" "Cray libfabric library directory"
+    add_critical_directory "$LIBFABRIC_DIR" "Cray libfabric library directory"
 fi
 
 # CXI library for Slingshot network
@@ -84,7 +95,7 @@ elif ls /usr/lib*/libcxi.so 2>/dev/null 1>&2; then
     CXI_PATH=$(ls /usr/lib*/libcxi.so 2>/dev/null | sort -V | tail -1)
 fi
 if [[ -n "$CXI_PATH" ]]; then
-    add_library "$CXI_PATH" "CXI library for Slingshot networking"
+    add_critical_library "$CXI_PATH" "CXI library for Slingshot networking"
 fi
 
 # Netlink library
@@ -95,7 +106,7 @@ elif ls /usr/lib*/libnl-3.so 2>/dev/null 1>&2; then
     NETLINK_PATH=$(ls /usr/lib*/libnl-3.so 2>/dev/null | sort -V | tail -1)
 fi
 if [[ -n "$NETLINK_PATH" ]]; then
-    add_library "$NETLINK_PATH" "Netlink library for network configuration"
+    add_critical_library "$NETLINK_PATH" "Netlink library for network configuration"
 fi
 
 # Process Management Interface (PMI) Libraries
@@ -106,32 +117,16 @@ if ls -d /opt/cray/pe/pmi/*/lib 2>/dev/null 1>&2; then
     PMI_DIR=$(ls -d /opt/cray/pe/pmi/*/lib 2>/dev/null | sort -V | tail -1)
 fi
 if [[ -n "$PMI_DIR" ]] && [[ -f "$PMI_DIR/libpmi2.so.0.6.0" ]]; then
-    add_directory "$PMI_DIR" "PMI library directory (newest version)"
-    add_library "$PMI_DIR/libpmi2.so.0.6.0" "PMI2 library"
-    add_library "$PMI_DIR/libpmi2.so.0" "PMI2 library (symlink)"
+    add_critical_directory "$PMI_DIR" "PMI library directory (newest version)"
+    add_critical_library "$PMI_DIR/libpmi2.so.0.6.0" "PMI2 library"
+    add_critical_library "$PMI_DIR/libpmi2.so.0" "PMI2 library (symlink)"
 fi
 
-# SLURM System Integration
-
-add_directory "/etc/slurm" "SLURM configuration directory"
-add_directory "/run/munge" "Munge authentication socket directory"
-add_directory "/usr/lib64/slurm" "SLURM library directory"
-add_directory "/var/spool/slurm" "SLURM spool directory"
-
-# Additional system libraries
-
-# System-specific paths that might be needed
-ADDITIONAL_PATHS=(
-    "/usr/lib64/libpthread.so.0"
-    "/usr/lib64/librt.so.1"
-    "/usr/lib64/libdl.so.2"
-)
-
-for path in "${ADDITIONAL_PATHS[@]}"; do
-    if [[ -e "$path" ]]; then
-        add_library "$path" "System library: $(basename "$path")"
-    fi
-done
+# SLURM System Integration (optional components)
+add_optional_directory "/etc/slurm" "SLURM configuration directory"
+add_optional_directory "/run/munge" "Munge authentication socket directory"
+add_optional_directory "/usr/lib64/slurm" "SLURM library directory"
+add_optional_directory "/var/spool/slurm" "SLURM spool directory"
 
 echo "[OK] Library setup complete for: $CURRENT_PROFILE"
 echo "Update container: e4s-cl profile edit --container-image /path/to/chapel-arkouda.sif"
