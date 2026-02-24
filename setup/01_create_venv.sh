@@ -24,7 +24,7 @@ fi
 PYTHON_CMD=""
 
 # Try different Python commands in order of preference
-for py_cmd in python3.11 python3.10 python3.9 python3.8 python3 python; do
+for py_cmd in python3.14 python3.13 python3.12 python3.11 python3.10 python3.9 python3.8 python3 python; do
     if command -v "$py_cmd" &>/dev/null; then
         PYTHON_VERSION=$("$py_cmd" --version 2>&1 | awk '{print $2}')
         PYTHON_CMD="$py_cmd"
