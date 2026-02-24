@@ -24,20 +24,32 @@ e4s-cl profile edit --container-image /path/to/your/chapel-arkouda.sif
 # Setup environment
 source bin/setup_env.sh
 
-# Launch server
-./bin/launch_arkouda.sh --nodes 2 --account myproject
+# Launch server (using short forms)
+./bin/launch_arkouda.sh -N 2 -A myproject
+
+# With partition and QOS
+./bin/launch_arkouda.sh -N 4 -A myproject -p compute -q high-priority
 
 # Interactive mode
-./bin/launch_arkouda.sh --interactive --nodes 1 --account myproject
+./bin/launch_arkouda.sh --interactive -N 1 -A myproject
+
+# Using long forms (also supported)
+./bin/launch_arkouda.sh --nodes 2 --account myproject
 ```
 
 ## Options
 
-| Option | Description |
-|--------|-------------|
-| `--nodes N` | Number of nodes |
-| `--account NAME` | SLURM account |
-| `--partition NAME` | SLURM partition |
-| `--time TIME` | Job time limit |
-| `--heap-size SIZE` | Chapel heap size |
-| `--interactive` | Run in foreground |
+| Option | Short | Description |
+|--------|-------|-------------|
+| `--nodes N` | `-N` | Number of nodes |
+| `--cpus-per-task N` | `-c` | CPUs per task (default: 256) |
+| `--account NAME` | `-A` | SLURM account |
+| `--partition NAME` | `-p` | SLURM partition |
+| `--qos NAME` | `-q` | SLURM quality of service |
+| `--time TIME` | `-t` | Job time limit (default: 2:00:00) |
+| `--job-name NAME` | `-J` | SLURM job name |
+| `--output FILE` | `-o` | Output file for logs |
+| `--heap-size SIZE` | | Chapel heap size (default: 64g) |
+| `--log-level LEVEL` | | Arkouda log level |
+| `--trace BOOL` | | Enable tracing |
+| `--interactive` | | Run in foreground |

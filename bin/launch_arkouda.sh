@@ -12,6 +12,7 @@ NODES="${NODES:-1}"
 CPUS_PER_TASK="${CPUS_PER_TASK:-256}"
 PARTITION="${PARTITION:-}"
 ACCOUNT="${ACCOUNT:-}"
+QOS="${QOS:-}"
 TIME_LIMIT="${TIME_LIMIT:-2:00:00}"
 CHPL_RT_MAX_HEAP_SIZE="${CHPL_RT_MAX_HEAP_SIZE:-64g}"
 LOG_LEVEL="${LOG_LEVEL:-LogLevel.ERROR}"
@@ -32,6 +33,7 @@ Options:
     -c, --cpus-per-task COUNT  CPUs per task (default: 256)
     -p, --partition NAME       SLURM partition (optional)
     -A, --account NAME         SLURM account/project (optional)
+    -q, --qos NAME            SLURM quality of service (optional)
     -t, --time TIME           Time limit (default: 2:00:00)
     --heap-size SIZE          Chapel heap size (default: 64g)
     --log-level LEVEL         Arkouda log level (default: LogLevel.ERROR)
@@ -66,6 +68,10 @@ while [[ $# -gt 0 ]]; do
             ;;
         -A|--account)
             ACCOUNT="$2"
+            shift 2
+            ;;
+        -q|--qos)
+            QOS="$2"
             shift 2
             ;;
         -t|--time)
@@ -158,6 +164,10 @@ if [[ -n "$ACCOUNT" ]]; then
     SRUN_ARGS+=("--account=${ACCOUNT}")
 fi
 
+if [[ -n "$QOS" ]]; then
+    SRUN_ARGS+=("--qos=${QOS}")
+fi
+
 if [[ -n "$OUTPUT_FILE" ]]; then
     SRUN_ARGS+=("--output=${OUTPUT_FILE}")
 fi
@@ -198,6 +208,7 @@ else
 #SBATCH --time=${TIME_LIMIT}
 $(if [[ -n "$PARTITION" ]]; then echo "#SBATCH --partition=${PARTITION}"; fi)
 $(if [[ -n "$ACCOUNT" ]]; then echo "#SBATCH --account=${ACCOUNT}"; fi)
+$(if [[ -n "$QOS" ]]; then echo "#SBATCH --qos=${QOS}"; fi)
 $(if [[ -n "$OUTPUT_FILE" ]]; then echo "#SBATCH --output=${OUTPUT_FILE}"; else echo "#SBATCH --output=arkouda_${JOB_NAME}_%j.out"; fi)
 
 # Setup environment
@@ -214,6 +225,7 @@ e4s-cl -q launch srun \\
     --time=${TIME_LIMIT} \\
 $(if [[ -n "$PARTITION" ]]; then echo "    --partition=${PARTITION} \\"; fi)
 $(if [[ -n "$ACCOUNT" ]]; then echo "    --account=${ACCOUNT} \\"; fi)
+$(if [[ -n "$QOS" ]]; then echo "    --qos=${QOS} \\"; fi)
 $(if [[ -n "$OUTPUT_FILE" ]]; then echo "    --output=${OUTPUT_FILE} \\"; else echo "    --output=arkouda_${JOB_NAME}_%j.out \\"; fi)
     --export=${ENV_VARS} \\
     -- arkouda_server_real \\
