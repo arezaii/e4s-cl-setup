@@ -198,47 +198,94 @@ else
     TIMESTAMP=$(date +%Y%m%d_%H%M%S)
     SBATCH_SCRIPT="/tmp/arkouda_${JOB_NAME}_${TIMESTAMP}.sbatch"
 
-    cat > "$SBATCH_SCRIPT" << EOF
-#!/bin/bash
-#SBATCH --job-name=${JOB_NAME}
+    # Build sbatch header lines
+    SBATCH_HEADER="#SBATCH --job-name=${JOB_NAME}
 #SBATCH --nodes=${NODES}
 #SBATCH --ntasks=${NODES}
 #SBATCH --cpus-per-task=${CPUS_PER_TASK}
 #SBATCH --exclusive
-#SBATCH --time=${TIME_LIMIT}
-$(if [[ -n "$PARTITION" ]]; then echo "#SBATCH --partition=${PARTITION}"; fi)
-$(if [[ -n "$ACCOUNT" ]]; then echo "#SBATCH --account=${ACCOUNT}"; fi)
-$(if [[ -n "$QOS" ]]; then echo "#SBATCH --qos=${QOS}"; fi)
-$(if [[ -n "$OUTPUT_FILE" ]]; then echo "#SBATCH --output=${OUTPUT_FILE}"; else echo "#SBATCH --output=arkouda_${JOB_NAME}_%j.out"; fi)
+#SBATCH --time=${TIME_LIMIT}"
+
+    if [[ -n "$PARTITION" ]]; then
+        SBATCH_HEADER="${SBATCH_HEADER}
+#SBATCH --partition=${PARTITION}"
+    fi
+
+    if [[ -n "$ACCOUNT" ]]; then
+        SBATCH_HEADER="${SBATCH_HEADER}
+#SBATCH --account=${ACCOUNT}"
+    fi
+
+    if [[ -n "$QOS" ]]; then
+        SBATCH_HEADER="${SBATCH_HEADER}
+#SBATCH --qos=${QOS}"
+    fi
+
+    if [[ -n "$OUTPUT_FILE" ]]; then
+        SBATCH_HEADER="${SBATCH_HEADER}
+#SBATCH --output=${OUTPUT_FILE}"
+    else
+        SBATCH_HEADER="${SBATCH_HEADER}
+#SBATCH --output=arkouda_${JOB_NAME}_%j.out"
+    fi
+
+    # Build srun command arguments
+    SRUN_CMD="e4s-cl -q launch srun \\
+    --job-name=${JOB_NAME} \\
+    --nodes=${NODES} \\
+    --ntasks=${NODES} \\
+    --cpus-per-task=${CPUS_PER_TASK} \\
+    --exclusive \\
+    --time=${TIME_LIMIT}"
+
+    if [[ -n "$PARTITION" ]]; then
+        SRUN_CMD="${SRUN_CMD} \\
+    --partition=${PARTITION}"
+    fi
+
+    if [[ -n "$ACCOUNT" ]]; then
+        SRUN_CMD="${SRUN_CMD} \\
+    --account=${ACCOUNT}"
+    fi
+
+    if [[ -n "$QOS" ]]; then
+        SRUN_CMD="${SRUN_CMD} \\
+    --qos=${QOS}"
+    fi
+
+    if [[ -n "$OUTPUT_FILE" ]]; then
+        SRUN_CMD="${SRUN_CMD} \\
+    --output=${OUTPUT_FILE}"
+    else
+        SRUN_CMD="${SRUN_CMD} \\
+    --output=arkouda_${JOB_NAME}_%j.out"
+    fi
+
+    SRUN_CMD="${SRUN_CMD} \\
+    --export=${ENV_VARS} \\
+    -- arkouda_server_real \\
+    -nl ${NODES} \\
+    --logLevel=${LOG_LEVEL} \\
+    --trace=${TRACE}"
+
+    # Write the sbatch script
+    cat > "$SBATCH_SCRIPT" << EOF
+#!/bin/bash
+${SBATCH_HEADER}
 
 # Setup environment
 source ${APPTAINER_SETUP}
 source ${VENV_DIR}/bin/activate
 
 # Launch Arkouda server
-e4s-cl -q launch srun \\
-    --job-name=${JOB_NAME} \\
-    --nodes=${NODES} \\
-    --ntasks=${NODES} \\
-    --cpus-per-task=${CPUS_PER_TASK} \\
-    --exclusive \\
-    --time=${TIME_LIMIT} \\
-$(if [[ -n "$PARTITION" ]]; then echo "    --partition=${PARTITION} \\"; fi)
-$(if [[ -n "$ACCOUNT" ]]; then echo "    --account=${ACCOUNT} \\"; fi)
-$(if [[ -n "$QOS" ]]; then echo "    --qos=${QOS} \\"; fi)
-$(if [[ -n "$OUTPUT_FILE" ]]; then echo "    --output=${OUTPUT_FILE} \\"; else echo "    --output=arkouda_${JOB_NAME}_%j.out \\"; fi)
-    --export=${ENV_VARS} \\
-    -- arkouda_server_real \\
-    -nl ${NODES} \\
-    --logLevel=${LOG_LEVEL} \\
-    --trace=${TRACE}
+${SRUN_CMD}
 EOF
 
     echo "Submitting batch job..."
+    echo "Script saved to: $SBATCH_SCRIPT"
     JOB_ID=$(sbatch --parsable "$SBATCH_SCRIPT")
     echo "Job ID: $JOB_ID"
     echo "Monitor: squeue -j $JOB_ID"
-
-    # Clean up sbatch script
-    (sleep 60 && rm -f "$SBATCH_SCRIPT") &
+    
+    # Keep sbatch script for inspection (no auto-deletion)
 fi
